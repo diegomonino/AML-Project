@@ -1,0 +1,61 @@
+#!/bin/bash
+
+# ==========================================
+# PARTE 1: RICHIESTA RISORSE A SLURM
+# ==========================================
+#SBATCH --job-name=Train_CYGNO           # Nome del tuo lavoro
+#SBATCH --account=tra26_sapi_ml          # Il nome del tuo progetto/budget (FONDAMENTALE)
+#SBATCH --partition=boost_usr_prod       # La partizione di Leonardo con le GPU
+#SBATCH --nodes=1                        # Numero di computer richiesti
+#SBATCH --ntasks=1                       # Numero di processi
+#SBATCH --cpus-per-task=4                # Numero di core CPU per preparare i dati
+#SBATCH --gpus=1                         # Richiedi 1 GPU potente per il training
+#SBATCH --mem=16G                        # Quantità di RAM
+#SBATCH --time=00:30:00                  # Tempo massimo (HH:MM:SS), se finisce prima si ferma da solo
+
+# ==========================================
+# PARTE 2: PREPARAZIONE AMBIENTE
+# ==========================================
+echo "Inizio del job. Configuro l'ambiente..."
+
+# Carica i moduli necessari
+module load python/3.10.20 # o la versione che usate
+
+# Variabili comode per non scrivere sempre i percorsi lunghi
+MIO_WORK="/leonardo_work/tra26_sapi_ml/CYGNO"
+NOME_ZIP="dataset_train_bilanciato.zip"
+NOME_SCRIPT_PYTHON="CNN_PURE.py"  # Sostituisci con il vero nome del tuo script!
+
+# ==========================================
+# PARTE 3: SPOSTAMENTO DATI IN SCRATCH
+# ==========================================
+# Creiamo una cartella temporanea in SCRATCH col numero del tuo job per non fare confusione
+MIO_SCRATCH="$SCRATCH/job_$SLURM_JOB_ID"
+mkdir -p $MIO_SCRATCH
+cd $MIO_SCRATCH
+
+echo "Sposto i dati nello SCRATCH ultraveloce: $MIO_SCRATCH"
+# Copio lo zip e lo script Python dal WORK allo SCRATCH
+cp $MIO_WORK/$NOME_ZIP .
+cp $MIO_WORK/$NOME_SCRIPT_PYTHON .
+
+echo "Scompatto lo zip..."
+unzip -q $NOME_ZIP
+
+# ==========================================
+# PARTE 4: ESECUZIONE DEL TRAINING
+# ==========================================
+echo "Inizio l'addestramento della rete neurale..."
+# Esegue il codice! (Assicurati che il tuo python legga le immagini dalla cartella corrente)
+python $NOME_SCRIPT_PYTHON
+
+# ==========================================
+# PARTE 5: SALVATAGGIO DEI RISULTATI
+# ==========================================
+echo "Training finito! Ricopio i risultati nel WORK..."
+# Sostituisci "modello_finale.keras" con il nome reale del file che genera il tuo codice
+cp final_model_CNN_PURE.keras $MIO_WORK/
+cp final_model_CNN_PURE.weights.h5 $MIO_WORK/
+# (Se il tuo codice genera altri file, es. grafici .png, aggiungi qui altri comandi cp)
+
+echo "Job completato con successo!"
